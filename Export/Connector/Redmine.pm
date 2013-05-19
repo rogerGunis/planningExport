@@ -3,13 +3,19 @@ package Export::Connector::Redmine;
 use Data::Dumper;
 use strict;
 use base qw(Export::Connector);
-use fields qw(config url username password dryrun _agent apiKey);
+use fields qw(config url username password dryrun _agent apiKey activityHash);
 
 # see http://search.cpan.org/~celogeek/Redmine-API-0.03/lib/Redmine/API.pm
 use Redmine::API;
+use Redmine::API::Request;
+use Redmine::API::Action;
 
 use constant ISSUE_CODE => qr/^((T\d+)|[a-zA-Z]{2,}-\d+)/;
 
+=head3 method new
+
+   Set keys
+=cut
 sub new {
     my $class = shift;
     my %opt = @_; 
@@ -17,9 +23,6 @@ sub new {
     my $self = fields::new($class);
 
 
-=head3
-   Set keys
-=cut
     while (my($key, $value) = each \%opt ){
         $self->$key($value);
     }
@@ -52,21 +55,16 @@ sub url {
     return $self->{url};
 }
 
-sub username {
-    my ($self, $username) = @_;
-    if (defined($username)) {
-        $self->{username} = $username;
+sub activities {
+
+    my ($self, $activityHash) = @_;
+
+    if (defined($activityHash)) {
+        $self->{activityHash} = $activityHash;
     }
-    return $self->{username};
+    return $self->{activityHash};
 }
 
-sub password {
-    my ($self, $password) = @_;
-    if (defined($password)) {
-        $self->{password} = $password;
-    }
-    return $self->{password};
-}
 
 sub _agent {
     my ($self, $_agent) = @_;
@@ -84,6 +82,39 @@ sub dryrun {
     return $self->{dryrun};
 }
 
+=head3 method getActivities
+
+    get and store activityIndex as Hash
+=cut
+sub _getActivities {
+    my $self = shift;
+
+    my $api = Redmine::API->new(
+        'auth_key' => $self->apiKey(),
+        base_url => $self->url(),
+        trace => 0
+    );
+
+    my $request = Redmine::API::Request->new(
+    'api' => $api,
+    route => 'enumerations/time_entry_activities');
+
+    my $actIds = Redmine::API::Action->new(
+        'request' => $request,
+        'action' => 'get'
+    );
+
+    my $activities = $actIds->all();
+
+    my $activityHash = {};
+    foreach my $activityEntry (@{$activities->body->{time_entry_activities}}){
+        $activityHash->{$activityEntry->{'name'}} = $activityEntry->{'id'};
+    }
+
+    $self->activities($activityHash);
+
+}
+
 sub connect {
     my ($self) = @_;
 
@@ -91,11 +122,14 @@ sub connect {
     my $apiKey = $self->apiKey() || die "Missing apiKey";
 
     my $c = Redmine::API->new(
-    'auth_key' => $apiKey,
-    base_url => $url,
-    trace => 1);
+        'auth_key' => $apiKey,
+        base_url => $url,
+        trace => 0
+    );
 
     $self->_agent($c);
+
+    $self->_getActivities();
 }
 
 sub exportTask {
@@ -132,7 +166,7 @@ sub exportTask {
     my $time = _formatTime($task->time);
     my $description = $task->description;
 
-    $self->_logWork($issueId, $date, $time, $description);
+    $self->_logWork($issueId, $date, $time, $description, $task->category);
 }
 
 sub _issueId(){
@@ -145,7 +179,7 @@ sub _issueId(){
 }
 
 sub _logWork {
-    my ($self, $issueId, $date, $time, $comment) = @_;
+    my ($self, $issueId, $date, $time, $comment, $category) = @_;
 
     die "Missing issue id" unless ($issueId);
     die "Missing date" unless ($date);
@@ -153,20 +187,28 @@ sub _logWork {
 
     my $_agent = $self->_agent || die "Missing agent";
 
-    print "[DEBUG] Logging work: '$issueId', '$date', '$time', '$comment'\n";
+    my $activityId = $self->activities()->{$category} || undef;
 
-    if ($self->dryrun()) {
-        die "DRYRUN: not exporting";
+    print "[DEBUG] Logging work: '$issueId', '$category ($activityId)', '$date', '$time', '$comment'\n";
+
+    if($activityId){
+
+        if ($self->dryrun()) {
+            die "DRYRUN: not exporting";
+        }
+
+        $_agent->time_entries->time_entry->create(
+            issue_id => $issueId,
+            spent_on => $date,
+            activity_id => 8,
+            hours => $time,
+            comments => $comment,
+            'done' => 90
+        );
     }
-
-    $_agent->time_entries->time_entry->create(
-        issue_id => $issueId,
-        spent_on => $date,
-        activity_id => 8,
-        hours => $time,
-        comments => $comment,
-        'done' => 90
-    );
+    else{
+        print '[WARN] Logging work: Category not found <'.$category."> skipping\n";
+    }
 }
 
 sub _formatDate {

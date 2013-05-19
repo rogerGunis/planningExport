@@ -108,7 +108,7 @@ sub confirmExport {
         return $choice ? 1 : 0;
     } else {
         my @table;
-        push @table, ['Date', 'Category', 'Activity', 'Time'];
+        push @table, ['Date', 'Category', 'Activity', 'Time', 'description'];
 
         foreach my $task (@$tasks) {
             push @table, [
@@ -116,6 +116,7 @@ sub confirmExport {
                 $task->category(),
                 $task->name(),
                 _formatTime($task->time()),
+                substr($task->description(), 0, 50),
             ];
         }
 
