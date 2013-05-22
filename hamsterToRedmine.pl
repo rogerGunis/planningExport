@@ -110,7 +110,7 @@ hamsterToredmine.pl - Export time tracked with Hamster to redmine.
 
 perl hamsterToredmine.pl
 [-d|--database I<path>]
-[-j|--redmine I<url>]
+[-r|--redmine I<url>]
 [-a|--apiKey <apiKey>]
 [-f|--from I<YYYY-MM-DD>]
 [-t|--to I<YYYY-MM-DD>]
@@ -125,17 +125,13 @@ perl hamsterToredmine.pl
 
 Path to the Hamster SQLite database (defaults to I<~/.local/share/hamster-applet/hamster.db>).
 
-=item B<-j> I<url>, B<--redmine> I<url>
+=item B<-r> I<url>, B<--redmine> I<url>
 
-URL pointing to redmine home page (e.g. I<http://redmine.mycompany.com:8080>). If not supplied, thr URLbof the last export is used.
+URL pointing to redmine home page (e.g. I<http://redmine.mycompany.com:8080>). If not supplied, thr URL of the last export is used.
 
-=item B<-u> I<username>, B<--username> I<username>
+=item B<-a> I<apiKey>, B<--apiKey> I<apiKey>
 
-redmine connection login.
-
-=item B<-p> I<password>, B<--password> I<password>
-
-redmine connection password.
+redmine apiKey - Look in your settings in redmine to get it
 
 =item B<-f> I<YYYY-MM-DD>, B<--from> I<YYYY-MM-DD>
 
