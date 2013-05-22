@@ -194,13 +194,13 @@ sub _logWork {
     if($activityId){
 
         if ($self->dryrun()) {
-            die "DRYRUN: not exporting";
+            die "DRYRUN: not exporting Task with comment: <$comment>";
         }
 
         $_agent->time_entries->time_entry->create(
             issue_id => $issueId,
             spent_on => $date,
-            activity_id => 8,
+            activity_id => $activityId,
             hours => $time,
             comments => $comment,
             'done' => 90
