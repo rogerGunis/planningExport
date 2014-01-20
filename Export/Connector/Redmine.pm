@@ -10,7 +10,7 @@ use Redmine::API;
 use Redmine::API::Request;
 use Redmine::API::Action;
 
-use constant ISSUE_CODE => qr/^((T\d+)|[a-zA-Z]{2,}-\d+)/;
+use constant ISSUE_CODE => qr/^((T\d+)|[a-zA-Z0-9_]{2,}-\d+)/;
 
 =head3 method new
 
