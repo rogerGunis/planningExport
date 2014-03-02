@@ -6,12 +6,13 @@ use lib dirname($0);
 
 use Getopt::Long;
 use Pod::Usage;
+use Data::Dumper;
 
 require Export::Configuration;
 require Export::FrontEnd;
 require Export::Bridge;
 require Export::Planner::Hamster;
-require Export::Connector::JIRA::REST;
+require Export::Connector::JIRA;
 
 use constant HAMSTER_DB =>
     $ENV{'HOME'}.'/.local/share/hamster-applet/hamster.db';
@@ -49,7 +50,7 @@ eval {
 
     $lockFile = $config->file().'.lock';
     if (-e $lockFile) {
-        Export::FrontEnd->alert("ERROR: The process is already running!");
+        Export::FrontEnd->alert("ERROR: The process is already running <".$lockFile.">!");
         exit(1);
     } else {
         open FILE, ">$lockFile";
@@ -92,6 +93,22 @@ eval {
         $bridge->connector($jira);
 
         $bridge->exportTasks($tasks);
+
+
+        # Cache some JIRA objects
+        # my %issuetypes = map {($_->{name} => $_)} @{$jira->GET('/issuetype')};
+        # my %priorities = map {($_->{name} => $_)} @{$jira->GET('/priority' )};
+        # my %projects   = map {($_->{name} => $_)} @{$jira->GET('/project'  )};
+        # my $issue = $jira->GET("/issue/OLD-4008");
+        # print Dumper($issue);
+
+        # $jira->POST('/issue/OLD-4008/worklog',
+        #     undef,
+        #     { "started" => "2014-03-01T17:34:37.937+0200",
+        #       'timeSpent'     => '1m',
+        #       'comment'        => '1min Spent on issue',
+        #       });
+
     }
 };
 if ($@) {

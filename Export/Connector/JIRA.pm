@@ -2,24 +2,20 @@ package Export::Connector::JIRA;
 
 use strict;
 use base qw(Export::Connector);
-use fields qw(config url username password dryrun _agent);
+use fields qw(config url username password dryrun _agent _projects);
+use Encode qw(decode encode);
 
-use constant ISSUE_CODE => qr/^([a-zA-Z]{2,}-\d+)/;
-use constant MONTHS => ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-                        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+# use constant ISSUE_CODE => qr/^([a-zA-Z]{2,}-\d+)/;
+use constant ISSUE_CODE => qr/^[a-zA-Z0-9]*-(_PROJECT_-\d+)/i;
 
-require LWP::UserAgent;
-require HTTP::Cookies;
+use Data::Dumper;
+use JIRA::REST;
 
 sub new {
     my ($class) = @_;
 
-    my $cookieJar = new HTTP::Cookies(autosave => 1);
-    my $agent = new LWP::UserAgent();
-    $agent->cookie_jar($cookieJar);
-
     my $self = fields::new($class);
-    $self->{_agent} = $agent;
+
     return $self;
 }
 
@@ -64,6 +60,20 @@ sub dryrun {
     return $self->{dryrun};
 }
 
+sub _getProjects {
+    my ($self) = @_;
+
+    my $projects  = [];
+    push @$projects, map {($_->{'key'} )} @{$self->{_agent}->GET('/project'  )};
+
+    $self->{_projects} = $projects;
+
+    print Dumper($self->{_projects});
+
+    # $self->config()->set('_projects', \%projects);
+
+}
+
 sub connect {
     my ($self) = @_;
 
@@ -71,19 +81,10 @@ sub connect {
     my $username = $self->username() || die "Missing username";
     my $password = $self->password() || die "Missing password";
 
-    my $response = $self->{_agent}->get(
-        $url . '/rest/gadget/1.0/login'
-            .'?os_cookie=true'
-            .'&os_username=' . $username
-            .'&os_password=' . $password);
+    my $jira = JIRA::REST->new($url, $username, $password);
+    $self->{_agent} = $jira;
 
-    unless ($response->code == 200) {
-        die "Could not connect to JIRA";
-    }
-
-    unless ($response->content =~ /loginSucceeded":true/o) {
-        die "Authentication failed";
-    }
+    $self->_getProjects();
 
     $self->config()->set('url', $url);
 }
@@ -97,14 +98,21 @@ sub exportTask {
 
     # Extract the issue code
     my $issueCode = undef;
-    if ($task->id =~ ISSUE_CODE) {
-        $issueCode = $1;
-    } elsif ($task->name =~ ISSUE_CODE) {
-        $issueCode = $1;
-    } elsif ($task->category =~ ISSUE_CODE) {
-        $issueCode = $1;
-    } elsif ($task->description =~ ISSUE_CODE) {
-        $issueCode = $1;
+
+    foreach my $project (@{$self->{_projects}}){
+
+      my $ISSUE_CODE = ISSUE_CODE;
+      $ISSUE_CODE =~ s/_PROJECT_/$project/;
+
+      if ($task->id =~ $ISSUE_CODE) {
+          $issueCode = $1;
+      } elsif ($task->name =~ $ISSUE_CODE) {
+          $issueCode = $1;
+      } elsif ($task->category =~ $ISSUE_CODE) {
+          $issueCode = $1;
+      } elsif ($task->description =~ $ISSUE_CODE) {
+          $issueCode = $1;
+      }
     }
 
     unless ($issueCode) {
@@ -112,17 +120,17 @@ sub exportTask {
     }
 
     # Convert to JIRA issue id
-    my $issueId = $self->_issueId($issueCode);
+    # my $issueId = $self->_issueId($issueCode);
 
-    unless ($issueId) {
-        die "Can't find JIRA issue id for $issueCode";
-    }
+    # unless ($issueId) {
+    #     die "Can't find JIRA issue id for $issueCode";
+    # }
 
     my $date = _formatDate($task->date, $task->start);
     my $time = _formatTime($task->time);
     my $description = $task->description;
 
-    $self->_logWork($issueId, $date, $time, $description);
+    $self->_logWork($issueCode, $date, $time, $description, $task->category);
 }
 
 sub _issueId {
@@ -134,62 +142,40 @@ sub _issueId {
 
     my $issueId = $issueIdCache->{$issueCode};
     unless ($issueId) {
-        my $response = $self->{_agent}->get($url . '/browse/' . $issueCode);
+        my $response = $self->{_agent}->GET('/issue/' . $issueCode);
+        my $issueId = $response->{'id'};
 
-        if ($response->content =~ /CreateWorklog!default.jspa\?id=(\d+)/o) {
-            $issueId = $1;
-
-            # add to the id cache
-            $self->config()->put('issueIdCache', $issueCode, $issueId);
-        }
+        # add to the id cache
+        $self->config()->put('issueIdCache', $issueCode, $issueId);
     }
 
     return $issueId;
 }
 
 sub _logWork {
-    my ($self, $issueId, $date, $time, $comment) = @_;
+    my ($self, $issueCode, $date, $time, $comment, $category) = @_;
 
-    die "Missing issue id" unless ($issueId);
+    die "Missing issueCode" unless ($issueCode);
     die "Missing date" unless ($date);
     die "Missing time" unless ($time);
 
     my $url = $self->url() || die "Missing url";
 
-    print "[DEBUG] Logging work: '$issueId', '$date', '$time', '$comment'\n";
+    print "[DEBUG] Logging work: '$issueCode', '$date', '$time', '$category: $comment'\n";
 
-    my $response = $self->{_agent}->get(
-        $url . '/secure/CreateWorklog!default.jspa?id=' . $issueId);
-
-    my $content = $response->content;
-    $content =~ s/\n+/ /go;
-    $content =~ s/\s+/ /go;
-
-    if ($content =~ /name="atl_token" value="([^"]+)"/o) {
-        my $token = $1;
-
-        if ($self->dryrun()) {
-            die "DRYRUN: not exporting";
-        }
-
-        # print STDERR "*** POSTING: issueId='$issueId', date='$date', time='$time', comment='$comment', token='$token' ***\n";
-
-        my $postResponse = $self->{_agent}->post(
-            $url . '/secure/CreateWorklog.jspa',
-            Content_Type => 'application/x-www-form-urlencoded',
-            Content => { 'Log'            => 'Log',
-                         'id'             => $issueId,
-                         'alt_token'      => $token,
-                         'startDate'      => $date,
-                         'timeLogged'     => $time,
-                         'comment'        => $comment,
-                         'adjustEstimate' => 'auto', });
-
-        if ($postResponse->code != 302) {
-            $response->content =~ /^(.*errMsg.*)$/mio;
-            die "Failed to log work (".$postResponse->code.": ".$1.")";
-        }
+    if ($self->dryrun()) {
+        die "DRYRUN: not exporting";
     }
+
+    print STDERR "*** POSTING: issueCode='$issueCode', date='$date', time='$time', comment='$comment' ***\n";
+
+    my $postResponse = $self->{_agent}->POST(
+        '/issue/'.$issueCode.'/worklog',
+        undef,
+        { 'started'      => $date,
+          'timeSpent'    => $time,
+          'comment'      => decode('UTF-8', $category.': '.$comment, Encode::FB_CROAK)
+         });
 }
 
 sub _formatDate {
@@ -199,22 +185,24 @@ sub _formatDate {
     my $month = substr($date, 5, 2);
     my $day = substr($date, 8, 2);
 
-    $date = ($day * 1).'/';
-    $date .= MONTHS->[$month - 1].'/';
-    $date .= ($year - 2000);
+    # 2/Mar/14 11:40 PM
+    $date = $year;
+    $date .= '-'.sprintf('%02d',$month);
+    $date .= '-'.sprintf('%02d',($day * 1));
 
     if ($start) {
-        my $hours = substr($start, 0, 2);
-        my $minutes = substr($start, 3, 2);
+        $date .= 'T'.$start.':00.000+0100';
 
+        # my $hours = substr($start, 0, 2);
+        # my $minutes = substr($start, 3, 2);
         # 1 AM -> 12 AM ; 1 PM -> 12 PM
-        if ($hours < 1) {
-            $date .= ' '.($hours * 1).':'.$minutes.' PM';
-        } elsif ($hours < 13) {
-            $date .= ' '.($hours * 1).':'.$minutes.' AM';
-        } else {
-            $date .= ' '.($hours - 12).':'.$minutes.' PM';
-        }
+        # if ($hours < 1) {
+        #     $date .= ' '.($hours * 1).':'.$minutes.' PM';
+        # } elsif ($hours < 13) {
+        #     $date .= ' '.($hours * 1).':'.$minutes.' AM';
+        # } else {
+        #     $date .= ' '.($hours - 12).':'.$minutes.' PM';
+        # }
     } else {
         $date .= ' 08:00 AM';
     }
