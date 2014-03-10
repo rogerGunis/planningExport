@@ -150,7 +150,12 @@ sub _formatTime {
         $rpart = 0;
     }
 
-   return sprintf("%d.%02d", $lpart, $rpart);
+    if($lpart == 0 && $rpart == 0){
+      return sprintf("%d.%02dm", int($time*60));
+    }
+    else{
+      return sprintf("%d.%02dh", $lpart, $rpart);
+    }
 }
 
 sub _printTable {

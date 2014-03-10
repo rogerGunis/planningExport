@@ -226,8 +226,13 @@ sub _formatTime {
         $lpart += 1;
         $rpart = 0;
     }
+    if($lpart == 0 && $rpart == 0){
+      return sprintf("%d.%02dm", int($time*60));
+    }
+    else{
+      return sprintf("%d.%02dh", $lpart, $rpart);
+    }
 
-   return sprintf("%d.%02dh", $lpart, $rpart);
 }
 
 1;
