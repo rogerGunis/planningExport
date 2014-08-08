@@ -17,7 +17,10 @@ on newer versions.
 * Requirements JIRA Connecctor:
 ----------------
   perl JIRA::REST
-  * The issue_code has to bee ^[a-zA-Z0-9]*-(_PROJECT_-\d+) in hamster
+  * The issue_code has to be ^[a-zA-Z0-9]*-(_PROJECT_-\d+) in hamster
+
+* added support for list issues within a project
+* added support for search for issue within a searched project
 
 ## License
 

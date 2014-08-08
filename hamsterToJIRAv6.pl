@@ -25,6 +25,8 @@ eval {
     my $jiraPassword = undef;
     my $fromDate     = undef;
     my $toDate       = undef;
+    my $exportIssuesFromProject   = undef;
+    my $searchSummary = undef;
     my $dryrun       = 0;
     my $help         = 0;
     my $man          = 0;
@@ -37,6 +39,8 @@ eval {
         'from|f=s'     => \$fromDate,
         'to|t=s'       => \$toDate,
         'dryrun'       => \$dryrun,
+        'exportIssuesFromProject|l=s'         => \$exportIssuesFromProject,
+        'searchSummary|s=s'         => \$searchSummary,
         'help|?'       => \$help,
         'man'          => \$man)) {
         pod2usage(2);
@@ -64,52 +68,45 @@ eval {
     $hamster->database($database);
     $bridge->planner($hamster);
 
-    # Prompt for the starting date if it is missing
-    unless ($fromDate) {
-        my $lastDate = $config->get('lastExportedDate');
-        $fromDate = Export::FrontEnd->prompt("Export from:", $lastDate);
+    # Prompt for missing connection details
+    unless ($jiraUrl) {
+        my $lastUrl = $config->get('url');
+        $jiraUrl = Export::FrontEnd->prompt("JIRA URL:", $lastUrl);
     }
 
-    my $tasks = $bridge->pendingTasks($fromDate, $toDate);
-
-    if (Export::FrontEnd->confirmExport($tasks, $fromDate, $toDate)) {
-        # Prompt for missing connection details
-        unless ($jiraUrl) {
-            my $lastUrl = $config->get('url');
-            $jiraUrl = Export::FrontEnd->prompt("JIRA URL:", $lastUrl);
-        }
-
-        unless ($jiraUsername && $jiraPassword) {
-            ($jiraUsername, $jiraPassword) =
-                Export::FrontEnd->promptPassword("Login to JIRA");
-        }
-
-        my $jira = new Export::Connector::JIRA();
-        $jira->config($config);
-        $jira->url($jiraUrl);
-        $jira->username($jiraUsername);
-        $jira->password($jiraPassword);
-        $jira->dryrun($dryrun);
-        $bridge->connector($jira);
-
-        $bridge->exportTasks($tasks);
-
-
-        # Cache some JIRA objects
-        # my %issuetypes = map {($_->{name} => $_)} @{$jira->GET('/issuetype')};
-        # my %priorities = map {($_->{name} => $_)} @{$jira->GET('/priority' )};
-        # my %projects   = map {($_->{name} => $_)} @{$jira->GET('/project'  )};
-        # my $issue = $jira->GET("/issue/OLD-4008");
-        # print Dumper($issue);
-
-        # $jira->POST('/issue/OLD-4008/worklog',
-        #     undef,
-        #     { "started" => "2014-03-01T17:34:37.937+0200",
-        #       'timeSpent'     => '1m',
-        #       'comment'        => '1min Spent on issue',
-        #       });
-
+    unless ($jiraUsername && $jiraPassword) {
+        ($jiraUsername, $jiraPassword) =
+            Export::FrontEnd->promptPassword("Login to JIRA");
     }
+
+
+    # pre initialization - after this no actual connection is made
+    my $jira = new Export::Connector::JIRA();
+    $jira->config($config);
+    $jira->url($jiraUrl);
+    $jira->username($jiraUsername);
+    $jira->password($jiraPassword);
+    $jira->dryrun($dryrun);
+    $bridge->connector($jira);
+
+
+    if($exportIssuesFromProject){
+      $bridge->exportIssues($exportIssuesFromProject,$searchSummary);
+    }
+    else{
+      # Prompt for the starting date if it is missing
+      unless ($fromDate) {
+          my $lastDate = $config->get('lastExportedDate');
+          $fromDate = Export::FrontEnd->prompt("Export from:", $lastDate);
+      }
+
+      my $tasks = $bridge->pendingTasks($fromDate, $toDate);
+
+      if (Export::FrontEnd->confirmExport($tasks, $fromDate, $toDate)) {
+          $bridge->exportTasks($tasks);
+      }
+    }
+
 };
 if ($@) {
     Export::FrontEnd->alert("ERROR: $@");
@@ -133,6 +130,8 @@ perl hamsterToJIRA.pl
 [-p|--password I<password>]
 [-f|--from I<YYYY-MM-DD>]
 [-t|--to I<YYYY-MM-DD>]
+[-l|--exportIssuesFromProject I<ProjectId>]
+[-s|--searchSummary I<text>]
 [--dryrun]
 [--help]
 
@@ -163,6 +162,15 @@ Date to export the activity from. If not supplied, the date of the last exported
 =item B<-t> I<YYYY-MM-DD>, B<--to> I<YYYY-MM-DD>
 
 Date to export the activity from. If not supplied, the current date is used.
+
+=item B<-l> I<exportIssuesFromProject>
+
+Returns a list of key <=> Summary of a given project (see -s)
+
+=item B<-s> I<searchSummary>
+
+Searches for summary in a given project (see -l)
+
 
 =item B<--dryrun>
 

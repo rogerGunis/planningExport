@@ -3,6 +3,7 @@ package Export::Bridge;
 use strict;
 
 use fields qw(config planner connector);
+use Data::Dumper;
 
 require Export::Planner;
 require Export::Connector;
@@ -67,6 +68,26 @@ sub pendingTasks {
     }
 
     return $tasks;
+}
+
+sub exportIssues {
+    my ($self, $project,$searchSummary) = @_;
+
+    my $config = $self->config() || die "Missing config";
+    my $connector = $self->connector() || die "Missing connector";
+
+    # Connect once here instead of print one error message per task
+    $connector->connect();
+
+    my $issues = undef;
+      eval {
+          $issues = $connector->exportIssues($project,$searchSummary);
+      };
+      if ($@) {
+          print STDERR "[WARN] Exporting issues not possible': $@"."\n";
+      }
+    foreach my $issue (@$issues){
+      print $issue->{'Key'}." <= ".$issue->{'Summary'}." => ".$issue->{'url'}."\n"; }
 }
 
 sub exportTasks {

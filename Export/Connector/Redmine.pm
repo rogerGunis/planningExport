@@ -74,6 +74,18 @@ sub _agent {
     return $self->{_agent};
 }
 
+sub exportIssues {
+    my ($self) = @_;
+    print STDERR "[ERR] function not implemented";
+    return [];
+}
+
+sub _getProjects {
+    my ($self) = @_;
+    print STDERR "[ERR] function not implemented";
+    return [];
+}
+
 sub dryrun {
     my ($self, $dryrun) = @_;
     if (defined($dryrun)) {

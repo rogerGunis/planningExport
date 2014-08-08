@@ -60,6 +60,43 @@ sub dryrun {
     return $self->{dryrun};
 }
 
+sub exportIssues {
+    my ($self,$project,$searchSummary) = @_;
+
+    my $jira = $self->{_agent};
+
+    my $issues  = [];
+    my $addSearchString = "";
+    if($searchSummary){
+      $addSearchString = 'and summary ~ "'.$searchSummary.'"';
+    }
+
+    my $search = $jira->POST('/search', undef, {
+        jql        => 'project = '.$project.' and (status != "resolved" and status != "closed") '.$addSearchString,
+        startAt    => 0,
+        maxResults => 300,
+        fields     => [ qw/summary status/ ],
+    });
+
+    my $json = JSON->new->allow_nonref;
+
+    foreach my $issue  (sort {
+                ($a->{'key'} =~ /-(\d+)/)[0] <=> ($b->{'key'} =~ /-(\d+)/)[0]
+            } @{$search->{issues}}) {
+      my $summary = encode('UTF-8',$issue->{'fields'}->{'summary'});
+
+      push @$issues, {
+        'Summary' => $summary,
+        'Key' => $issue->{'key'},
+        'url' => $self->url."/browse/".$issue->{'key'}
+      }
+
+    }
+
+    return $issues;
+
+}
+
 sub _getProjects {
     my ($self) = @_;
 
@@ -68,7 +105,10 @@ sub _getProjects {
 
     $self->{_projects} = $projects;
 
-    print Dumper($self->{_projects});
+    print 'All projects on Server: '."\n";
+    foreach my $project (@$projects){
+      print " ".$project."\n";
+    }
 
     # $self->config()->set('_projects', \%projects);
 
