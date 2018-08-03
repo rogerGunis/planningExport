@@ -27,6 +27,7 @@ eval {
     my $toDate       = undef;
     my $exportIssuesFromProject   = undef;
     my $searchSummary = undef;
+    my $showProjects = undef;
     my $dryrun       = 0;
     my $help         = 0;
     my $man          = 0;
@@ -39,6 +40,7 @@ eval {
         'from|f=s'     => \$fromDate,
         'to|t=s'       => \$toDate,
         'dryrun'       => \$dryrun,
+        'showProjects|x'       => \$showProjects,
         'exportIssuesFromProject|l=s'         => \$exportIssuesFromProject,
         'searchSummary|s=s'         => \$searchSummary,
         'help|?'       => \$help,
@@ -95,6 +97,9 @@ eval {
     if($exportIssuesFromProject){
       $bridge->exportIssues($exportIssuesFromProject,$searchSummary);
     }
+    elsif($showProjects){
+      $bridge->showProjects($exportIssuesFromProject,$searchSummary);
+    }
     else{
       # Prompt for the starting date if it is missing
       unless ($fromDate) {
@@ -132,8 +137,9 @@ perl hamsterToJIRA.pl
 [-p|--password I<password>]
 [-f|--from I<YYYY-MM-DD>]
 [-t|--to I<YYYY-MM-DD>]
-[-l|--exportIssuesFromProject I<ProjectId>]
+[-l|--exportIssuesFromProject (CurrentSprint) I<ProjectId>]
 [-s|--searchSummary I<text>]
+[-x|--showProjects]
 [--dryrun]
 [--help]
 
@@ -167,7 +173,7 @@ Date to export the activity from. If not supplied, the current date is used.
 
 =item B<-l> I<exportIssuesFromProject>
 
-Returns a list of key <=> Summary of a given project (see -s)
+Returns a list of key <=> Summary of a given project (open sprint and issue not closed) (see -s)
 
 =item B<-s> I<searchSummary>
 

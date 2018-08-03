@@ -66,10 +66,11 @@ sub exportIssues {
     my $jira = $self->{_agent};
 
     my $issues  = [];
-    my $addSearchString = "";
+    my $addSearchString = " and Sprint in openSprints() AND issuetype in standardIssueTypes()  and status not in (Closed,Done) ";
     if($searchSummary){
       $addSearchString = 'and summary ~ "'.$searchSummary.'"';
     }
+    $addSearchString .= " ORDER BY RANK, issuetype";
 
     my $search = $jira->POST('/search', undef, {
         jql        => 'project = '.$project.' and (status != "resolved" and status != "closed") '.$addSearchString,
@@ -80,9 +81,7 @@ sub exportIssues {
 
     my $json = JSON->new->allow_nonref;
 
-    foreach my $issue  (sort {
-                ($a->{'key'} =~ /-(\d+)/)[0] <=> ($b->{'key'} =~ /-(\d+)/)[0]
-            } @{$search->{issues}}) {
+    foreach my $issue  (@{$search->{issues}}) {
       my $summary = encode('UTF-8',$issue->{'fields'}->{'summary'});
 
       push @$issues, {
@@ -97,7 +96,7 @@ sub exportIssues {
 
 }
 
-sub _getProjects {
+sub showProjects {
     my ($self) = @_;
 
     my $projects  = [];
@@ -123,8 +122,6 @@ sub connect {
 
     my $jira = JIRA::REST->new($url, $username, $password);
     $self->{_agent} = $jira;
-
-    $self->_getProjects();
 
     $self->config()->set('url', $url);
 }

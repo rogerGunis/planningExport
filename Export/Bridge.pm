@@ -70,6 +70,19 @@ sub pendingTasks {
     return $tasks;
 }
 
+sub showProjects {
+    my ($self, $project,$searchSummary) = @_;
+    my $connector = $self->connector() || die "Missing connector";
+    $connector->connect();
+
+    eval {
+        $connector->showProjects();
+    };
+    if ($@) {
+        print STDERR "[ERROR] Projects not listed': $@"."\n";
+    }
+}
+
 sub exportIssues {
     my ($self, $project,$searchSummary) = @_;
 
@@ -86,8 +99,9 @@ sub exportIssues {
       if ($@) {
           print STDERR "[WARN] Exporting issues not possible': $@"."\n";
       }
+      my $width = 60;
     foreach my $issue (@$issues){
-      print $issue->{'Key'}." <= ".$issue->{'Summary'}." => ".$issue->{'url'}."\n"; }
+      print $issue->{'Key'}."\t".sprintf("%".$width."s", substr($issue->{'Summary'},0,$width))." \t ".$issue->{'url'}."\n"; }
 }
 
 sub exportTasks {
