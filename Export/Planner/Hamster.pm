@@ -60,11 +60,13 @@ sub tasks {
         $description =~ s/([^\.])\.$/$1/go;
 
         my $task = new Export::Task();
+        my @splitOfactivity = split('-',$activity);
+        my $jiraIssue = "$splitOfactivity[-2]-$splitOfactivity[-1]";
         $task->id($factId);
         $task->date($date);
         $task->start($start);
         $task->time($time);
-        $task->name($activity);
+        $task->name($jiraIssue);
         $task->category($category);
         $task->description($description);
 

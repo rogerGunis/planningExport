@@ -6,7 +6,7 @@ use fields qw(config url username password dryrun _agent _projects);
 use Encode qw(decode encode);
 
 # use constant ISSUE_CODE => qr/^([a-zA-Z]{2,}-\d+)/;
-use constant ISSUE_CODE => qr/^[a-zA-Z0-9]*-(_PROJECT_-\d+)/i;
+use constant ISSUE_CODE => qr/^(_PROJECT_-\d+)/i;
 
 use Data::Dumper;
 use JIRA::REST;
@@ -136,11 +136,15 @@ sub exportTask {
     # Extract the issue code
     my $issueCode = undef;
 
+    my $projects  = [];
+    push @$projects, map {($_->{'key'} )} @{$self->{_agent}->GET('/project'  )};
+
+    $self->{_projects} = $projects;
+
     foreach my $project (@{$self->{_projects}}){
 
       my $ISSUE_CODE = ISSUE_CODE;
       $ISSUE_CODE =~ s/_PROJECT_/$project/;
-
       if ($task->id =~ $ISSUE_CODE) {
           $issueCode = $1;
       } elsif ($task->name =~ $ISSUE_CODE) {
