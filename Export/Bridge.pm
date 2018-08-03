@@ -101,7 +101,7 @@ sub exportIssues {
       }
       my $width = 60;
     foreach my $issue (@$issues){
-      print $issue->{'Key'}."\t".sprintf("%".$width."s", substr($issue->{'Summary'},0,$width))." \t ".$issue->{'url'}."\n"; }
+      print $issue->{'Key'}."\t".sprintf("%-".$width."s", substr($issue->{'Summary'},0,$width))." \t ".$issue->{'url'}."\n"; }
 }
 
 sub exportTasks {
