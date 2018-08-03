@@ -125,11 +125,11 @@ sub confirmExport {
             ($toDate ? $toDate : "today")." can be exported:\n";
         _printTable(\@table);
 
-        print "Do you really want to export these values? [y/N] ";
+        print "Do you really want to export these values? [N/y] ";
         my $choice = <STDIN>;
         chomp($choice);
 
-        return lc($choice) eq 'y' ? 1 : 0;
+        return lc($choice) eq 'n' ? 0 : 1;
     }
 }
 

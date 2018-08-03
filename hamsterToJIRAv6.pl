@@ -79,6 +79,8 @@ eval {
             Export::FrontEnd->promptPassword("Login to JIRA");
     }
 
+    chomp($jiraPassword);
+    chomp($jiraUsername);
 
     # pre initialization - after this no actual connection is made
     my $jira = new Export::Connector::JIRA();
