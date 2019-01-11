@@ -23,6 +23,7 @@ eval {
     my $jiraUrl      = undef;
     my $jiraUsername = undef;
     my $jiraPassword = undef;
+    my $displayUrl = undef;
     my $fromDate     = undef;
     my $toDate       = undef;
     my $exportIssuesFromProject   = undef;
@@ -37,6 +38,7 @@ eval {
         'jira|j=s'     => \$jiraUrl,
         'username|u=s' => \$jiraUsername,
         'password|p=s' => \$jiraPassword,
+        'displayUrl|y=s' => \$displayUrl,
         'from|f=s'     => \$fromDate,
         'to|t=s'       => \$toDate,
         'dryrun'       => \$dryrun,
@@ -83,6 +85,7 @@ eval {
 
     chomp($jiraPassword);
     chomp($jiraUsername);
+    chomp($displayUrl);
 
     # pre initialization - after this no actual connection is made
     my $jira = new Export::Connector::JIRA();
@@ -95,7 +98,7 @@ eval {
 
 
     if($exportIssuesFromProject){
-      $bridge->exportIssues($exportIssuesFromProject,$searchSummary);
+      $bridge->exportIssues($exportIssuesFromProject,$searchSummary,$displayUrl);
     }
     elsif($showProjects){
       $bridge->showProjects($exportIssuesFromProject,$searchSummary);

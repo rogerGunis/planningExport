@@ -14,7 +14,7 @@ if [ $SSH_CHECK == 0 ];then
 fi
 
 if [ -n "$JIRA_USER" -a -n "$JIRA_PASSWORD" ];then
-   hamsterToJIRAv6.pl -j http://localhost:8081 -u "$JIRA_USER" -p "$JIRA_PASSWORD" $@
+   hamsterToJIRAv6.pl -j http://localhost:8081 -u "$JIRA_USER" -p "$JIRA_PASSWORD" -y "$DISPLAY_URL" $@
 else
 cat <<EOF
  You can set JIRA_USER= and JIRA_PASSWORD= in $HOME/.jiraLogin

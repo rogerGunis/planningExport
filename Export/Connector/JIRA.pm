@@ -66,7 +66,7 @@ sub exportIssues {
     my $jira = $self->{_agent};
 
     my $issues  = [];
-    my $addSearchString = " and Sprint in openSprints() AND issuetype in standardIssueTypes()  and status not in (Closed,Done) ";
+    my $addSearchString = " and Sprint in openSprints() AND ( issuetype in standardIssueTypes() OR issuetype in subtaskIssueTypes())   and status not in (Closed,Done) ";
     if($searchSummary){
       $addSearchString = 'and summary ~ "'.$searchSummary.'"';
     }
@@ -76,17 +76,21 @@ sub exportIssues {
         jql        => 'project = '.$project.' and (status != "resolved" and status != "closed") '.$addSearchString,
         startAt    => 0,
         maxResults => 300,
-        fields     => [ qw/summary status/ ],
+        fields     => [ qw/summary status issuetype parent/ ],
     });
 
     my $json = JSON->new->allow_nonref;
 
     foreach my $issue  (@{$search->{issues}}) {
       my $summary = encode('UTF-8',$issue->{'fields'}->{'summary'});
+      my $isSubTask = $issue->{'fields'}->{'issuetype'}->{'subtask'};
+      my $parentSummary = $issue->{'fields'}->{'parent'}->{'fields'}->{'summary'};
 
       push @$issues, {
         'Summary' => $summary,
+        'parentSummary' => $parentSummary,
         'Key' => $issue->{'key'},
+        'isSubTask' => "".$isSubTask,
         'url' => $self->url."/browse/".$issue->{'key'}
       }
 

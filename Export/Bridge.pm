@@ -84,7 +84,7 @@ sub showProjects {
 }
 
 sub exportIssues {
-    my ($self, $project,$searchSummary) = @_;
+    my ($self, $project,$searchSummary,$displayUrl) = @_;
 
     my $config = $self->config() || die "Missing config";
     my $connector = $self->connector() || die "Missing connector";
@@ -101,7 +101,15 @@ sub exportIssues {
       }
       my $width = 60;
     foreach my $issue (@$issues){
-      print $issue->{'Key'}."\t".sprintf("%-".$width."s", substr($issue->{'Summary'},0,$width))." \t ".$issue->{'url'}."\n"; }
+        my $isSubTask = $issue->{'isSubTask'};
+        if($isSubTask == "0"){
+            print $issue->{'Key'}."\t".sprintf("%-".$width."s", substr($issue->{'Summary'},0,$width))." \t ".$displayUrl.$issue->{'Key'}."\n";
+        }
+
+        if($isSubTask == "1" && $issue->{'parentSummary'} =~ /Maintenance/){
+            print "\t".$issue->{'Key'}."\t".sprintf("%-".$width."s", substr($issue->{'Summary'},0,$width))." \t ".$displayUrl.$issue->{'Key'}."\n";
+       }
+    }
 }
 
 sub exportTasks {
