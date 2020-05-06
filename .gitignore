@@ -2,4 +2,8 @@
 
 hamster.db
 export.sh
+export2jira
 *~
+*.sqp
+*.swp
+*.swo
