@@ -8,18 +8,20 @@ test -f $HOME/.jiraLogin && source $HOME/.jiraLogin
 notify-send -t 5000 'Hamster Export' "Hamster Export stared ..."
 PATH=$PATH:/home/vagrant/planningExport/
 
-SSH_CHECK=$(ps auxw | grep -v grep | grep '8081:127.0.0.1:8081' | wc -l)
+LOCAL_PORT=5001
+
+SSH_CHECK=$(ps auxw | grep -v grep | grep ${LOCAL_PORT}':127.0.0.1:8081' | wc -l)
 if [ $SSH_CHECK == 0 ];then
-  ssh -L 8081:127.0.0.1:8081 $SSH_TARGET -Nf
+  ssh -L ${LOCAL_PORT}:127.0.0.1:8081 $SSH_TARGET -Nf
 fi
 
 if [ -n "$JIRA_USER" -a -n "$JIRA_PASSWORD" ];then
-   hamsterToJIRAv6.pl -j http://localhost:8081 -u "$JIRA_USER" -p "$JIRA_PASSWORD" -y "$DISPLAY_URL" $@
+   hamsterToJIRAv6.pl -j http://localhost:${LOCAL_PORT} -u "$JIRA_USER" -p "$JIRA_PASSWORD" -y "$DISPLAY_URL" $@
 else
 cat <<EOF
  You can set JIRA_USER= and JIRA_PASSWORD= in $HOME/.jiraLogin
  This will prevent login prompts
 EOF
-   hamsterToJIRAv6.pl -j http://localhost:8081
+   hamsterToJIRAv6.pl -j http://localhost:${LOCAL_PORT}
 fi
 notify-send -t 5000 'Hamster Export' "Hamster Export ended ..."

@@ -208,19 +208,32 @@ sub _logWork {
 
     print "[DEBUG] Logging work: '$issueCode', '$date', '$time', '$category: $comment'\n";
 
-    if ($self->dryrun()) {
-        die "DRYRUN: not exporting";
-    }
+	my %rec_hash = (
+		'name' => 'Kunde/Typ', 
+		'value' => 'IsarFlow',
+		'workAttributeId' => 4);
 
-    print STDERR "*** POSTING: issueCode='$issueCode', date='$date', time='$time', comment='$comment' ***\n";
+	my $blub = Dumper(\%rec_hash);
+	$blub =~ s/^\$VAR1 = //;
+	$blub =~ s/;$//;
+
+    print STDERR "*** POSTING: issueCode='$issueCode', date='$date', time='$time', 
+		comment='$comment', 'KundeTyp' => ".$blub." ***\n";
+
+    # if ($self->dryrun()) {
+    #     die "DRYRUN: not exporting";
+    # }
+
 
     my $postResponse = $self->{_agent}->POST(
         '/issue/'.$issueCode.'/worklog',
         undef,
         { 'started'      => $date,
           'timeSpent'    => $time,
-          'comment'      => decode('UTF-8', $category.': '.$comment, Encode::FB_CROAK)
+          'comment'      => decode('UTF-8', $category.': '.$comment, Encode::FB_CROAK),
+          '_KundenTyp_' => \%rec_hash
          });
+exit 1;
 }
 
 sub _formatDate {
